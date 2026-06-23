@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zip To Zip — Booking Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>.btn-connect{background:#16a34a;color:#fff;border-color:#16a34a}.btn-connect:hover{background:#15803d}</style>
 <style>
 :root {
   color-scheme: light;
@@ -246,6 +248,7 @@ tbody td { padding: 8px 10px; vertical-align: middle; }
   </div>
   <div class="header-actions">
     <span class="last-upd" id="last-upd"></span>
+    <button class="btn btn-connect" id="connect-btn" onclick="connectCalendar()">🔗 Connect Calendar</button>
     <button class="btn btn-primary" id="refresh-btn" onclick="loadData()">
       <span id="refresh-icon">↺</span> Refresh Data
     </button>
@@ -420,6 +423,40 @@ let page = 1;
 const PAGE_SIZE = 50;
 const charts = {};
 
+// ── Google Calendar connect (client-side OAuth) ───────────────────────
+const GOOGLE_CLIENT_ID = '';                       // ← paste your OAuth Web Client ID (xxxx.apps.googleusercontent.com)
+const CALENDAR_ID = 'contact@ziptozipmoving.com';  // calendar to read
+let gToken = null, gTokenClient = null;
+
+function initGoogle() {
+  if (!GOOGLE_CLIENT_ID || !(window.google && google.accounts && google.accounts.oauth2)) return false;
+  if (!gTokenClient) {
+    gTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      callback: (resp) => {
+        if (resp && resp.access_token) {
+          gToken = resp.access_token;
+          const cb = document.getElementById('connect-btn');
+          if (cb) { cb.textContent = '✓ Calendar connected'; cb.disabled = true; cb.style.opacity = .7; }
+          loadData();
+        }
+      }
+    });
+  }
+  return true;
+}
+
+function connectCalendar() {
+  if (!GOOGLE_CLIENT_ID) {
+    document.getElementById('subhead').textContent = 'Setup needed: no Google Client ID configured yet (see SETUP_GOOGLE.md).';
+    alert('One-time Google setup needed.\n\nThis page needs a Google OAuth Client ID before it can connect. See SETUP_GOOGLE.md in the repo, or ask Claude to finish setup once you have the Client ID.');
+    return;
+  }
+  if (!initGoogle()) { alert('Google sign-in is still loading — wait a moment and click again.'); return; }
+  gTokenClient.requestAccessToken({ prompt: gToken ? '' : 'consent' });
+}
+
 // ── Boot ────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   document.querySelectorAll('.tab').forEach(t =>
@@ -430,6 +467,7 @@ window.addEventListener('load', () => {
       document.getElementById('tab-' + t.dataset.tab).classList.add('active');
     })
   );
+  initGoogle();
   loadData();
 });
 
@@ -437,6 +475,8 @@ window.addEventListener('load', () => {
 async function loadData() {
   const btn = document.getElementById('refresh-btn');
   const icon = document.getElementById('refresh-icon');
+  const useCowork = !!(window.cowork && window.cowork.callMcpTool);
+  if (!useCowork && !gToken) { document.getElementById('subhead').textContent = 'Click “Connect Calendar” to load your bookings.'; return; }
   btn.disabled = true;
   icon.innerHTML = '<span class="spinner"></span>';
   document.getElementById('subhead').textContent = 'Loading calendar data…';
@@ -450,26 +490,28 @@ async function loadData() {
     do {
       pg++;
       document.getElementById('subhead').textContent = 'Loading page ' + pg + '…';
-      const args = { calendarId: 'contact@ziptozipmoving.com', startTime: start, endTime: end, pageSize: 250, orderBy: 'startTime' };
-      if (pageToken) args.pageToken = pageToken;
-
-      const result = await window.cowork.callMcpTool('mcp__3ddf15c8-df90-4209-afab-031c8d1c0fc0__list_events', args);
-
-      // Handle all response shapes
       let parsed;
-      if (typeof result === 'string' && result.trim()[0] === '{') parsed = JSON.parse(result);
-      else if (typeof result === 'string' && result.trim()[0] === '[') {
-        const arr = JSON.parse(result);
-        const tb = arr.find && arr.find(b => b && b.type === 'text');
-        parsed = tb ? JSON.parse(tb.text) : {};
-      } else if (typeof result === 'string') throw new Error(result.slice(0, 120));
-      else if (Array.isArray(result)) {
-        const tb = result.find(b => b && b.type === 'text');
-        parsed = tb ? JSON.parse(tb.text) : {};
-      } else if (result && result.content) {
-        const tb = (result.content || []).find(b => b && b.type === 'text');
-        parsed = tb ? JSON.parse(tb.text) : {};
-      } else parsed = result || {};
+      if (useCowork) {
+        const args = { calendarId: CALENDAR_ID, startTime: start, endTime: end, pageSize: 250, orderBy: 'startTime' };
+        if (pageToken) args.pageToken = pageToken;
+        const result = await window.cowork.callMcpTool('mcp__3ddf15c8-df90-4209-afab-031c8d1c0fc0__list_events', args);
+        if (typeof result === 'string' && result.trim()[0] === '{') parsed = JSON.parse(result);
+        else if (typeof result === 'string' && result.trim()[0] === '[') { const arr = JSON.parse(result); const tb = arr.find && arr.find(b => b && b.type === 'text'); parsed = tb ? JSON.parse(tb.text) : {}; }
+        else if (typeof result === 'string') throw new Error(result.slice(0, 120));
+        else if (Array.isArray(result)) { const tb = result.find(b => b && b.type === 'text'); parsed = tb ? JSON.parse(tb.text) : {}; }
+        else if (result && result.content) { const tb = (result.content || []).find(b => b && b.type === 'text'); parsed = tb ? JSON.parse(tb.text) : {}; }
+        else parsed = result || {};
+      } else {
+        const u = new URL('https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(CALENDAR_ID) + '/events');
+        u.searchParams.set('timeMin', start); u.searchParams.set('timeMax', end);
+        u.searchParams.set('singleEvents', 'true'); u.searchParams.set('orderBy', 'startTime');
+        u.searchParams.set('maxResults', '250'); u.searchParams.set('showDeleted', 'false');
+        if (pageToken) u.searchParams.set('pageToken', pageToken);
+        const r = await fetch(u.toString(), { headers: { Authorization: 'Bearer ' + gToken } });
+        if (r.status === 401) { gToken = null; const cb = document.getElementById('connect-btn'); if (cb) { cb.textContent = '🔗 Connect Calendar'; cb.disabled = false; cb.style.opacity = 1; } throw new Error('Session expired — click “Connect Calendar” again.'); }
+        if (!r.ok) throw new Error('Calendar API ' + r.status + ': ' + (await r.text()).slice(0, 140));
+        parsed = await r.json();
+      }
 
       const events = parsed.events || parsed.items || (Array.isArray(parsed) ? parsed : []);
       pageToken = parsed.nextPageToken || null;
