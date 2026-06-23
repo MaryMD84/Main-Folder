@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zip To Zip — Booking Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --primary: #2563eb;
+  --primary-light: #dbeafe;
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --warning: #d97706;
+  --warning-light: #fef3c7;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --purple: #7c3aed;
+  --purple-light: #ede9fe;
+  --teal: #0891b2;
+  --teal-light: #cffafe;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.1);
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+/* ── Header ── */
+.header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  position: sticky; top: 0; z-index: 200;
+}
+.header-brand h1 { font-size: 16px; font-weight: 700; }
+.header-brand p { font-size: 11px; color: var(--text-muted); }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.btn {
+  padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--card); color: var(--text); font-size: 12px; cursor: pointer; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 5px; transition: all .15s;
+}
+.btn:hover { background: var(--bg); }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: #1d4ed8; }
+.spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.last-upd { font-size: 11px; color: var(--text-muted); }
+
+/* ── Filters ── */
+.filters-bar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;
+}
+.fg { display: flex; flex-direction: column; gap: 3px; }
+.fg label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.fg select, .fg input[type=date], .fg input[type=text] {
+  padding: 5px 9px; border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 12px; color: var(--text); background: var(--bg); min-width: 120px;
+}
+.fg select:focus, .fg input:focus { outline: none; border-color: var(--primary); }
+
+/* ── Alerts ── */
+.alerts-bar { padding: 10px 20px 0; display: none; }
+.alerts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.alert-card {
+  border-radius: var(--radius); padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.alert-card.danger { background: #fff5f5; border: 1px solid #fca5a5; }
+.alert-card.warning { background: #fffbeb; border: 1px solid #fcd34d; }
+.alert-icon { font-size: 20px; flex-shrink: 0; }
+.alert-title { font-size: 13px; font-weight: 700; }
+.alert-card.danger .alert-title { color: var(--danger); }
+.alert-card.warning .alert-title { color: #b45309; }
+.alert-sub { font-size: 11px; color: var(--text-muted); }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; padding: 0 20px; border-bottom: 1px solid var(--border); background: var(--card); overflow-x: auto; }
+.tab { padding: 9px 16px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; }
+.tab:hover { color: var(--primary); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.content { padding: 16px 20px; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── KPI Cards ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.kpi {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 16px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kpi-color, var(--primary)); }
+.kpi .k-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 6px; }
+.kpi .k-value { font-size: 26px; font-weight: 800; line-height: 1; color: var(--kpi-color, var(--primary)); }
+.kpi .k-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+.kpi .k-trend { font-size: 11px; font-weight: 600; margin-top: 4px; }
+.kpi .k-trend.up { color: var(--success); }
+.kpi .k-trend.down { color: var(--danger); }
+.kpi .k-trend.flat { color: var(--text-muted); }
+
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.charts-grid.triple { grid-template-columns: 2fr 1fr 1fr; }
+.chart-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.chart-header { padding: 12px 16px 0; display: flex; align-items: center; justify-content: space-between; }
+.chart-title { font-size: 13px; font-weight: 600; }
+.chart-sub { font-size: 11px; color: var(--text-muted); }
+.chart-body { padding: 12px 16px 16px; position: relative; }
+.chart-body canvas { max-height: 220px; }
+
+/* ── Month Comparison ── */
+.month-comp {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px;
+}
+.month-comp-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.month-comp-title { font-size: 13px; font-weight: 600; }
+.month-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.month-col { padding: 14px 16px; border-right: 1px solid var(--border); }
+.month-col:last-child { border-right: none; }
+.month-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 10px; }
+.month-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+.month-row:last-child { border-bottom: none; }
+.month-row .mkey { color: var(--text-muted); }
+.month-row .mval { font-weight: 700; color: var(--text); }
+.month-row .mval.highlight { color: var(--primary); }
+
+/* ── Table ── */
+.table-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.table-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.table-toolbar h3 { font-size: 14px; font-weight: 600; }
+.table-count { font-size: 12px; color: var(--text-muted); }
+.t-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  background: var(--bg); padding: 8px 10px; text-align: left;
+  font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+  cursor: pointer; user-select: none;
+}
+thead th:hover { color: var(--primary); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f8fafc; }
+tbody td { padding: 8px 10px; vertical-align: middle; }
+.cell-wrap { white-space: normal; word-break: break-word; max-width: 160px; }
+.cell-nw { white-space: nowrap; }
+
+.badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.b-local { background: var(--primary-light); color: var(--primary); }
+.b-ld { background: var(--success-light); color: var(--success); }
+.b-am { background: var(--warning-light); color: #92400e; }
+.b-pm { background: var(--purple-light); color: var(--purple); }
+.b-mid { background: #f1f5f9; color: #64748b; }
+.b-yes { background: var(--success-light); color: var(--success); }
+.b-no { background: var(--danger-light); color: var(--danger); }
+.b-miss { background: var(--danger-light); color: var(--danger); font-size: 9px; }
+.b-bulky { background: #fef3c7; color: #92400e; }
+.b-storage { background: var(--purple-light); color: var(--purple); }
+.b-ztz { background: #dcfce7; color: #15803d; }
+.b-tuji { background: #fce7f3; color: #be185d; }
+.b-cl { background: #e0f2fe; color: #0369a1; }
+
+.pagination { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+.pbtns { display: flex; gap: 4px; }
+.pbtn { padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; font-size: 12px; }
+.pbtn:hover { background: var(--bg); }
+.pbtn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pbtn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Morning cards ── */
+.morning-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.m-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px; box-shadow: var(--shadow);
+}
+.m-card.over { background: #fff5f5; border-color: #fca5a5; }
+.m-card.near { background: #fffbeb; border-color: #fcd34d; }
+.m-date { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.m-count { font-size: 30px; font-weight: 800; line-height: 1; }
+.m-card.over .m-count { color: var(--danger); }
+.m-card.near .m-count { color: var(--warning); }
+.m-card:not(.over):not(.near) .m-count { color: var(--primary); }
+.m-list { font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.7; }
+
+/* ── Issues ── */
+.issue-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 12px; }
+.issue-section-header { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; background: var(--bg); }
+.issue-row { padding: 9px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+.issue-row:last-child { border-bottom: none; }
+.i-name { font-weight: 600; min-width: 140px; }
+.i-date { color: var(--text-muted); min-width: 75px; }
+.i-rep { color: var(--text-muted); min-width: 60px; }
+.i-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.itag { padding: 2px 7px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+.itag.err { background: var(--danger-light); color: var(--danger); }
+.itag.warn { background: var(--warning-light); color: #92400e; }
+
+.empty { padding: 36px; text-align: center; color: var(--text-muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<!-- ZTZ-HOME-START (injected: floating back-to-index button) -->
+<a href="./index.html" class="ztz-home" aria-label="Back to all reports" title="All reports">
+  <img src="./assets/logo.png" alt="Zip To Zip" onerror="this.remove()">
+  <span class="ztz-home-label">&larr; All Reports</span>
+</a>
+<style>
+.ztz-home{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:9px;
+  padding:8px 15px 8px 11px;background:#ffffff;border:1px solid #e2e8f0;border-radius:9999px;
+  box-shadow:0 6px 18px rgba(0,0,0,.14);text-decoration:none;color:#0f172a;
+  font:600 13px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  transition:transform .12s ease,box-shadow .12s ease}
+.ztz-home:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.2)}
+.ztz-home img{height:24px;width:auto;display:block}
+.ztz-home-label{white-space:nowrap}
+@media print{.ztz-home{display:none!important}}
+</style>
+<!-- ZTZ-HOME-END -->
+
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-brand">
+    <h1>📦 Zip To Zip Moving — Booking Dashboard</h1>
+    <p id="subhead">Live · contact@ziptozipmoving.com</p>
+  </div>
+  <div class="header-actions">
+    <span class="last-upd" id="last-upd"></span>
+    <button class="btn btn-primary" id="refresh-btn" onclick="loadData()">
+      <span id="refresh-icon">↺</span> Refresh Data
+    </button>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters-bar">
+  <div class="fg"><label>From Date</label><input type="date" id="f-from" oninput="applyFilters()"></div>
+  <div class="fg"><label>To Date</label><input type="date" id="f-to" oninput="applyFilters()"></div>
+  <div class="fg"><label>Sales Rep</label><select id="f-rep" onchange="applyFilters()"><option value="">All Reps</option></select></div>
+  <div class="fg"><label>Source</label><select id="f-src" onchange="applyFilters()"><option value="">All Sources</option></select></div>
+  <div class="fg"><label>Job Type</label>
+    <select id="f-type" onchange="applyFilters()">
+      <option value="">All Types</option>
+      <option value="local">Local</option>
+      <option value="ld">Long Distance</option>
+    </select>
+  </div>
+  <div class="fg"><label>Time of Day</label>
+    <select id="f-time" onchange="applyFilters()">
+      <option value="">All Times</option>
+      <option value="morning">Morning (≤ 10 AM)</option>
+      <option value="afternoon">Afternoon (≥ 1 PM)</option>
+    </select>
+  </div>
+  <div class="fg"><label>Brand</label>
+    <select id="f-brand" onchange="applyFilters()">
+      <option value="">All Brands</option>
+      <option value="Zip to Zip">Zip to Zip</option>
+      <option value="Tuji">Tuji</option>
+      <option value="CL">CL</option>
+    </select>
+  </div>
+  <div class="fg"><label>Search</label><input type="text" id="f-search" placeholder="name, tag, rep, code…" oninput="applyFilters()" style="min-width:150px"></div>
+  <div class="fg"><label>&nbsp;</label><button class="btn" onclick="clearFilters()">✕ Clear</button></div>
+</div>
+
+<!-- ALERTS -->
+<div class="alerts-bar" id="alerts-bar">
+  <div class="alerts-grid" id="alerts-grid"></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="bookings">All Bookings</div>
+  <div class="tab" data-tab="morning">Morning Jobs</div>
+  <div class="tab" data-tab="issues">Issues</div>
+</div>
+
+<div class="content">
+
+  <!-- OVERVIEW TAB -->
+  <div class="tab-pane active" id="tab-overview">
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi" style="--kpi-color:#2563eb"><div class="k-label">Total Jobs</div><div class="k-value" id="k-total">—</div><div class="k-sub">2026 &amp; later</div><div class="k-trend" id="k-total-trend"></div></div>
+      <div class="kpi" style="--kpi-color:#16a34a"><div class="k-label">Local</div><div class="k-value" id="k-local">—</div><div class="k-trend" id="k-local-trend"></div></div>
+      <div class="kpi" style="--kpi-color:#7c3aed"><div class="k-label">Long Distance</div><div class="k-value" id="k-ld">—</div><div class="k-trend" id="k-ld-trend"></div></div>
+      <div class="kpi" style="--kpi-color:#d97706"><div class="k-label">Morning Jobs</div><div class="k-value" id="k-morning">—</div><div class="k-sub">start ≤ 10 AM</div></div>
+      <div class="kpi" style="--kpi-color:#0891b2"><div class="k-label">Afternoon Jobs</div><div class="k-value" id="k-afternoon">—</div><div class="k-sub">start ≥ 1 PM</div></div>
+      <div class="kpi" style="--kpi-color:#dc2626"><div class="k-label">No Deposit</div><div class="k-value" id="k-nodep">—</div></div>
+      <div class="kpi" style="--kpi-color:#f59e0b"><div class="k-label">Missing Info</div><div class="k-value" id="k-miss">—</div></div>
+      <div class="kpi" style="--kpi-color:#059669"><div class="k-label">Avg Hourly Rate</div><div class="k-value" id="k-avgrate">—</div><div class="k-sub">local moves only</div></div>
+      <div class="kpi" style="--kpi-color:#db2777"><div class="k-label">Top Rate Job</div><div class="k-value" id="k-toprate">—</div><div class="k-sub" id="k-toprate-sub"></div></div>
+    </div>
+
+    <!-- Charts row 1 -->
+    <div class="charts-grid" style="grid-template-columns:2fr 1fr; margin-bottom:12px">
+      <div class="chart-card">
+        <div class="chart-header"><div><div class="chart-title">Jobs by Move Date</div><div class="chart-sub">Top 30 dates</div></div></div>
+        <div class="chart-body"><canvas id="chart-bydate"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header"><div><div class="chart-title">Local vs Long Distance</div></div></div>
+        <div class="chart-body" style="display:flex;align-items:center;justify-content:center"><canvas id="chart-type"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Charts row 2 -->
+    <div class="charts-grid" style="margin-bottom:12px">
+      <div class="chart-card">
+        <div class="chart-header"><div><div class="chart-title">Jobs by Sales Rep</div></div></div>
+        <div class="chart-body"><canvas id="chart-rep"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header"><div><div class="chart-title">Jobs by Source</div></div></div>
+        <div class="chart-body"><canvas id="chart-src"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Month over month -->
+    <div class="month-comp" id="month-comp">
+      <div class="month-comp-header">
+        <span class="month-comp-title">📅 Month-over-Month Comparison</span>
+        <span style="font-size:11px;color:var(--text-muted)">All bookings · not affected by filters</span>
+      </div>
+      <div class="month-cols" id="month-cols"></div>
+    </div>
+
+  </div>
+
+  <!-- BOOKINGS TAB -->
+  <div class="tab-pane" id="tab-bookings">
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h3>All Bookings</h3>
+        <span class="table-count" id="t-count">Loading…</span>
+      </div>
+      <div class="t-scroll">
+        <table>
+          <thead><tr>
+            <th onclick="sortBy('moveDate')">Move Date ↕</th>
+            <th onclick="sortBy('customer')">Customer ↕</th>
+            <th>Company</th>
+            <th>Route</th>
+            <th onclick="sortBy('timeStr')">Time ↕</th>
+            <th>Type</th>
+            <th>Time</th>
+            <th>Vehicle</th>
+            <th>Crew</th>
+            <th>Rate</th>
+            <th>Svc Fee</th>
+            <th>CF/BR</th>
+            <th>Deposit</th>
+            <th onclick="sortBy('rep')">Rep ↕</th>
+            <th>Source</th>
+            <th onclick="sortBy('brand')">Brand ↕</th>
+            <th>Flags</th>
+            <th>Missing</th>
+          </tr></thead>
+          <tbody id="t-body"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pag">
+        <span id="p-info"></span>
+        <div class="pbtns" id="p-btns"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MORNING JOBS TAB -->
+  <div class="tab-pane" id="tab-morning">
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Morning = start ≤ 10:00 AM. Alert fires at 16+, warning at 12+.</p>
+    <div class="morning-grid" id="morning-grid"></div>
+  </div>
+
+  <!-- ISSUES TAB -->
+  <div class="tab-pane" id="tab-issues">
+    <div class="issue-section">
+      <div class="issue-section-header">⚠️ Missing Critical Information</div>
+      <div id="issues-missing"></div>
+    </div>
+    <div class="issue-section">
+      <div class="issue-section-header">🔴 High-Risk Notes</div>
+      <div id="issues-highrisk"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="debug-section" style="display:none!important;height:0;overflow:hidden"><pre id="debug-output"></pre></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let allBookings = [];
+let filtered = [];
+let sortField = 'moveDate', sortAsc = true;
+let page = 1;
+const PAGE_SIZE = 50;
+const charts = {};
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  document.querySelectorAll('.tab').forEach(t =>
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+    })
+  );
+  loadData();
+});
+
+// ── Load Calendar ───────────────────────────────────────────────────────────
+async function loadData() {
+  const btn = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spinner"></span>';
+  document.getElementById('subhead').textContent = 'Loading calendar data…';
+  allBookings = [];
+
+  try {
+    const start = '2026-01-01T00:00:00Z';
+    const end = new Date(new Date().getFullYear() + 2, 11, 31).toISOString();
+    let pageToken = null, pg = 0;
+
+    do {
+      pg++;
+      document.getElementById('subhead').textContent = 'Loading page ' + pg + '…';
+      const args = { calendarId: 'contact@ziptozipmoving.com', startTime: start, endTime: end, pageSize: 250, orderBy: 'startTime' };
+      if (pageToken) args.pageToken = pageToken;
+
+      const result = await window.cowork.callMcpTool('mcp__3ddf15c8-df90-4209-afab-031c8d1c0fc0__list_events', args);
+
+      // Handle all response shapes
+      let parsed;
+      if (typeof result === 'string' && result.trim()[0] === '{') parsed = JSON.parse(result);
+      else if (typeof result === 'string' && result.trim()[0] === '[') {
+        const arr = JSON.parse(result);
+        const tb = arr.find && arr.find(b => b && b.type === 'text');
+        parsed = tb ? JSON.parse(tb.text) : {};
+      } else if (typeof result === 'string') throw new Error(result.slice(0, 120));
+      else if (Array.isArray(result)) {
+        const tb = result.find(b => b && b.type === 'text');
+        parsed = tb ? JSON.parse(tb.text) : {};
+      } else if (result && result.content) {
+        const tb = (result.content || []).find(b => b && b.type === 'text');
+        parsed = tb ? JSON.parse(tb.text) : {};
+      } else parsed = result || {};
+
+      const events = parsed.events || parsed.items || (Array.isArray(parsed) ? parsed : []);
+      pageToken = parsed.nextPageToken || null;
+      events.forEach(ev => { const b = parseEvent(ev); if (b) allBookings.push(b); });
+    } while (pageToken);
+
+    allBookings.sort((a, b) => a.moveDate.localeCompare(b.moveDate));
+    populateDropdowns();
+    applyFilters();
+    renderMonthComparison();
+    renderAlerts();
+
+    const now = new Date();
+    document.getElementById('last-upd').textContent = 'Updated ' + now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('subhead').textContent = 'Live · contact@ziptozipmoving.com · ' + allBookings.length + ' jobs loaded';
+  } catch(e) {
+    document.getElementById('subhead').textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+  btn.disabled = false;
+  icon.innerHTML = '↺';
+}
+
+// ── Parse Event ─────────────────────────────────────────────────────────────
+function parseEvent(ev) {
+  if (!ev || !ev.summary) return null;
+  const startRaw = ev.start?.dateTime || ev.start?.date || '';
+  if (!startRaw) return null;
+  const yr = parseInt(startRaw.slice(0, 4));
+  if (isNaN(yr) || yr < 2026) return null;
+
+
+  const moveDate = startRaw.slice(0, 10);
+  const timeStr = startRaw.includes('T') ? startRaw.slice(11, 16) : '';
+  const startHour = timeStr ? parseInt(timeStr.split(':')[0]) : null;
+  const startMin = timeStr ? parseInt(timeStr.split(':')[1]) : 0;
+  const isMorning = startHour !== null && (startHour < 10 || (startHour === 10 && startMin === 0));
+  const isAfternoon = startHour !== null && startHour >= 13;
+
+  const desc = ev.description || '';
+  const summary = ev.summary || '';
+
+  // Route
+  let route = '';
+  const rm = summary.match(/[\(\[]?([A-Z]{2})\s*[-–—]\s*([A-Z]{2})[\)\]]?/i);
+  if (rm) route = rm[1].toUpperCase() + '-' + rm[2].toUpperCase();
+
+  // Customer
+  let customer = '';
+  const cd = desc.match(/Customer Name:\s*<b>([^<]+)<\/b>/i) || desc.match(/Customer Name:\s*([^\n<]+)/i);
+  if (cd) customer = cd[1].trim();
+  else {
+    customer = summary.replace(/[\(\[][A-Z]{2}[-–—][A-Z]{2}[\)\]]/gi,'').replace(/\([\w\s]+\)/g,'').replace(/[🚍🛬☎️🏭✈️🚛]/gu,'').replace(/#[^#\s]+#/g,'').replace(/\d{3}[-.\s]\d{3}[-.\s]\d{4}/g,'').replace(/In Home Estimate|Delivery|Storage|uline\s*\w+/gi,'').split('/')[0].trim().replace(/\s+/g,' ');
+  }
+
+  function getF(label) {
+    for (const p of [new RegExp(label+'[:\\s]+([^\\n<]+)','i'), new RegExp('<b>'+label+'<\\/b>[:\\s]*([^<\\n]+)','i')]) {
+      const m = desc.match(p);
+      if (m) return m[1].trim().replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').trim();
+    }
+    return '';
+  }
+
+  const customerName = getF('Customer Name') || customer;
+  const cf = getF('Total CF') || getF('CF');
+  const crew = getF('Crew Size') || getF('Crew Size at Pickup');
+  const cashRate = getF('Cash Rate') || getF('Cash Price per CF');
+  const cardRate = getF('Card Rate') || getF('Card Price per CF');
+  const rate = cashRate && cardRate ? '$' + cn(cashRate) + '/$' + cn(cardRate) : cashRate ? '$' + cn(cashRate) : cardRate ? '$' + cn(cardRate) : '';
+  const serviceFee = getF('Service Fee');
+  const deposit = getF('Deposit');
+  const depositNum = parseFloat((deposit || '').replace(/[^0-9.]/g,'')) || 0;
+  const depositPaid = depositNum > 0 && !deposit.toLowerCase().includes('no deposit');
+  const source = getF('Source');
+  const rep = getF('Sales Rep 1') || getF('Sales Rep');
+  const movingType = getF('Moving Type') || '';
+  const jobCode = getF('Job Code');
+  const fad = getF('FAD') || getF('First Available Date');
+  const truckQty = getF('Truck Quantity');
+  const vanQty = getF('Van Quantity');
+  let vehicle = '';
+  if (truckQty && truckQty !== '0') vehicle = truckQty + ' Truck' + (parseInt(truckQty) > 1 ? 's' : '');
+  if (vanQty && vanQty !== '0') vehicle += (vehicle ? ' + ' : '') + vanQty + ' Van' + (parseInt(vanQty) > 1 ? 's' : '');
+  if (!vehicle) vehicle = desc.match(/\btruck\b/i) ? 'Truck' : desc.match(/\bvan\b/i) ? 'Van' : '';
+  const isLD = movingType.toLowerCase().includes('long distance') || ev.colorId === '3' || desc.toLowerCase().includes('long distance');
+  if (!route) {
+    const fs = desc.match(/Moving From:[^\n]*,\s*([A-Z]{2})\s+\d{5}/i);
+    const ts2 = desc.match(/Moving To:[^\n]*,\s*([A-Z]{2})\s+\d{5}/i);
+    if (fs && ts2) route = fs[1] + '-' + ts2[1];
+  }
+  const hasBulky = /bulky|piano|safe|hot tub/i.test(desc);
+  const hasStorage = !!getF('Storage') || desc.toLowerCase().includes('storage');
+  const tags = (summary.match(/#([^#\s]+)#/g) || []).map(t => t.replace(/#/g,'').toLowerCase());
+
+  // Brand detection
+  const summaryLower = summary.toLowerCase();
+  let brand = 'Zip to Zip';
+  if (tags.includes('tuji') || summaryLower.includes('tuji')) brand = 'Tuji';
+  else if (tags.includes('cl') || (jobCode||'').toUpperCase().startsWith('CL') || /\bCL\b/.test(summary)) brand = 'CL';
+
+  // Hourly rate as number (for pricing metrics) — take first number only
+  const cashRateNum = cashRate ? (parseFloat((cashRate.match(/[\d.]+/)||[])[0])||null) : null;
+
+  const missing = [];
+  if (!rate) missing.push('Rate');
+  if (!cf && !desc.match(/\d+\s*cf/i)) missing.push('CF');
+  if (!rep) missing.push('Rep');
+  if (!source) missing.push('Source');
+
+  return { id:ev.id, moveDate, timeStr, startHour, isMorning, isAfternoon, customer:customerName||customer, route:route||'—', vehicle, crew, rate, cashRate, cashRateNum, cardRate, serviceFee, cf, deposit, depositPaid, source, rep, jobCode, isLD, fad, hasBulky, hasStorage, tags, brand, missing, rawSummary:summary, rawDesc:desc, colorId:ev.colorId };
+}
+
+function cn(s) { return s ? s.replace(/[^0-9.\/]/g,'') : s; }
+
+// ── Dropdowns ────────────────────────────────────────────────────────────────
+function populateDropdowns() {
+  const reps = [...new Set(allBookings.map(b => b.rep).filter(Boolean))].sort();
+  const rs = document.getElementById('f-rep'); rs.innerHTML = '<option value="">All Reps</option>';
+  reps.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; rs.appendChild(o); });
+  const srcs = [...new Set(allBookings.map(b => b.source).filter(Boolean))].sort();
+  const ss = document.getElementById('f-src'); ss.innerHTML = '<option value="">All Sources</option>';
+  srcs.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; ss.appendChild(o); });
+}
+
+// ── Filters ──────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const from = document.getElementById('f-from').value;
+  const to = document.getElementById('f-to').value;
+  const rep = document.getElementById('f-rep').value;
+  const src = document.getElementById('f-src').value;
+  const type = document.getElementById('f-type').value;
+  const time = document.getElementById('f-time').value;
+  const brand = document.getElementById('f-brand').value;
+  const q = (document.getElementById('f-search').value || '').toLowerCase().trim();
+
+  filtered = allBookings.filter(b => {
+    if (from && b.moveDate < from) return false;
+    if (to && b.moveDate > to) return false;
+    if (rep && b.rep !== rep) return false;
+    if (src && b.source !== src) return false;
+    if (type === 'local' && b.isLD) return false;
+    if (type === 'ld' && !b.isLD) return false;
+    if (time === 'morning' && !b.isMorning) return false;
+    if (time === 'afternoon' && !b.isAfternoon) return false;
+    if (brand && b.brand !== brand) return false;
+    if (q) { const h = [b.customer,b.rep,b.source,b.jobCode,b.route,b.rawSummary,...(b.tags||[])].join(' ').toLowerCase(); if (!h.includes(q)) return false; }
+    return true;
+  });
+
+  filtered.sort((a, b) => { const va = a[sortField]||'', vb = b[sortField]||''; return sortAsc ? va<vb?-1:va>vb?1:0 : va>vb?-1:va<vb?1:0; });
+  page = 1;
+
+  updateKPIs();
+  updateCharts();
+  renderTable();
+  renderMorning();
+  renderIssues();
+}
+
+function clearFilters() {
+  ['f-from','f-to','f-search'].forEach(id => document.getElementById(id).value = '');
+  ['f-rep','f-src','f-type','f-time','f-brand'].forEach(id => document.getElementById(id).value = '');
+  applyFilters();
+}
+
+function sortBy(f) { if (sortField===f) sortAsc=!sortAsc; else { sortField=f; sortAsc=true; } applyFilters(); }
+
+// ── KPIs ─────────────────────────────────────────────────────────────────────
+function updateKPIs() {
+  const f = filtered;
+  const prev = prevMonthBookings();
+  setValue('k-total', f.length, trend(f.length, prev.total));
+  setValue('k-local', f.filter(b=>!b.isLD).length, trend(f.filter(b=>!b.isLD).length, prev.local));
+  setValue('k-ld', f.filter(b=>b.isLD).length, trend(f.filter(b=>b.isLD).length, prev.ld));
+  document.getElementById('k-morning').textContent = f.filter(b=>b.isMorning).length;
+  document.getElementById('k-afternoon').textContent = f.filter(b=>b.isAfternoon).length;
+  document.getElementById('k-nodep').textContent = f.filter(b=>!b.depositPaid).length;
+  document.getElementById('k-miss').textContent = f.filter(b=>b.missing.length>0).length;
+
+  // Pricing metrics (local moves with known cash rate)
+  const localRates = f.filter(b => !b.isLD && b.cashRateNum);
+  const avgRate = localRates.length ? Math.round(localRates.reduce((s,b)=>s+b.cashRateNum,0)/localRates.length) : null;
+  document.getElementById('k-avgrate').textContent = avgRate ? '$'+avgRate : '—';
+  const topJob = localRates.slice().sort((a,b)=>b.cashRateNum-a.cashRateNum)[0] || null;
+  document.getElementById('k-toprate').textContent = topJob ? '$'+topJob.cashRateNum : '—';
+  document.getElementById('k-toprate-sub').textContent = topJob ? (topJob.customer||'')+(topJob.moveDate?' · '+topJob.moveDate:'') : '';
+}
+
+function setValue(id, val, trendEl) {
+  document.getElementById(id).textContent = val;
+  if (trendEl) document.getElementById(id+'-trend').innerHTML = trendEl;
+}
+
+function trend(curr, prev) {
+  if (!prev && prev !== 0) return '';
+  const diff = curr - prev;
+  if (diff === 0) return '<span class="flat">— same as prev month</span>';
+  const sign = diff > 0 ? '+' : '';
+  const cls = diff > 0 ? 'up' : 'down';
+  const arrow = diff > 0 ? '▲' : '▼';
+  return `<span class="${cls}">${arrow} ${sign}${diff} vs prev month</span>`;
+}
+
+function prevMonthBookings() {
+  const now = new Date();
+  const pm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  const pmYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const pmStr = pmYear + '-' + String(pm + 1).padStart(2, '0');
+  const pm_all = allBookings.filter(b => b.moveDate.startsWith(pmStr));
+  return { total: pm_all.length, local: pm_all.filter(b=>!b.isLD).length, ld: pm_all.filter(b=>b.isLD).length };
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+const COLORS = ['#2563eb','#16a34a','#7c3aed','#d97706','#0891b2','#dc2626','#059669','#db2777','#ea580c','#65a30d'];
+
+function mkChart(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, cfg);
+}
+
+function updateCharts() {
+  // Jobs by date (bar)
+  const byDate = {};
+  filtered.forEach(b => { byDate[b.moveDate] = (byDate[b.moveDate]||0)+1; });
+  const dateEntries = Object.entries(byDate).sort((a,b)=>a[0].localeCompare(b[0])).slice(0,30);
+  mkChart('chart-bydate', {
+    type: 'bar',
+    data: {
+      labels: dateEntries.map(([d]) => fmtDateShort(d)),
+      datasets: [{
+        label: 'Total',
+        data: dateEntries.map(([,c])=>c),
+        backgroundColor: dateEntries.map(([,c]) => c > 15 ? '#fca5a5' : c >= 12 ? '#fcd34d' : '#93c5fd'),
+        borderColor: dateEntries.map(([,c]) => c > 15 ? '#dc2626' : c >= 12 ? '#d97706' : '#2563eb'),
+        borderWidth: 1.5, borderRadius: 4
+      }]
+    },
+    options: { responsive:true, maintainAspectRatio:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}}, x:{ticks:{maxRotation:45,font:{size:10}}} } }
+  });
+
+  // Donut - local vs LD
+  const lc = filtered.filter(b=>!b.isLD).length, ld = filtered.filter(b=>b.isLD).length;
+  mkChart('chart-type', {
+    type: 'doughnut',
+    data: { labels:['Local','Long Distance'], datasets:[{data:[lc,ld], backgroundColor:['#93c5fd','#86efac'], borderColor:['#2563eb','#16a34a'], borderWidth:2, hoverOffset:6}] },
+    options: { responsive:true, maintainAspectRatio:true, plugins:{ legend:{position:'bottom',labels:{font:{size:11},padding:12}} } }
+  });
+
+  // Jobs by rep (horizontal bar)
+  const byRep = {}; filtered.forEach(b => { const k=b.rep||'(unknown)'; byRep[k]=(byRep[k]||0)+1; });
+  const repEntries = Object.entries(byRep).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  mkChart('chart-rep', {
+    type: 'bar',
+    data: {
+      labels: repEntries.map(([k])=>k),
+      datasets:[{ label:'Jobs', data:repEntries.map(([,c])=>c), backgroundColor: COLORS.map(c=>c+'cc'), borderColor:COLORS, borderWidth:1.5, borderRadius:4 }]
+    },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,ticks:{stepSize:1}},y:{ticks:{font:{size:11}}}} }
+  });
+
+  // Jobs by source (horizontal bar)
+  const bySrc = {}; filtered.forEach(b => { const k=b.source||'(unknown)'; bySrc[k]=(bySrc[k]||0)+1; });
+  const srcEntries = Object.entries(bySrc).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  mkChart('chart-src', {
+    type: 'bar',
+    data: {
+      labels: srcEntries.map(([k])=>k),
+      datasets:[{ label:'Jobs', data:srcEntries.map(([,c])=>c), backgroundColor:'#c4b5fd', borderColor:'#7c3aed', borderWidth:1.5, borderRadius:4 }]
+    },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,ticks:{stepSize:1}},y:{ticks:{font:{size:11}}}} }
+  });
+}
+
+// ── Month Comparison ──────────────────────────────────────────────────────────
+function renderMonthComparison() {
+  const byMonth = {};
+  allBookings.forEach(b => {
+    const m = b.moveDate.slice(0,7);
+    if (!byMonth[m]) byMonth[m] = { total:0, local:0, ld:0, morning:0, afternoon:0, nodep:0 };
+    byMonth[m].total++;
+    if (!b.isLD) byMonth[m].local++; else byMonth[m].ld++;
+    if (b.isMorning) byMonth[m].morning++;
+    if (b.isAfternoon) byMonth[m].afternoon++;
+    if (!b.depositPaid) byMonth[m].nodep++;
+  });
+
+  const months = Object.keys(byMonth).sort().slice(-6); // last 6 months with data
+  const cols = document.getElementById('month-cols');
+  cols.innerHTML = months.map(m => {
+    const d = byMonth[m];
+    return `
+      <div class="month-col">
+        <div class="month-name">${fmtMonth(m)}</div>
+        <div class="month-row"><span class="mkey">Total</span><span class="mval highlight">${d.total}</span></div>
+        <div class="month-row"><span class="mkey">Local</span><span class="mval">${d.local}</span></div>
+        <div class="month-row"><span class="mkey">Long Distance</span><span class="mval">${d.ld}</span></div>
+        <div class="month-row"><span class="mkey">Morning</span><span class="mval">${d.morning}</span></div>
+        <div class="month-row"><span class="mkey">Afternoon</span><span class="mval">${d.afternoon}</span></div>
+        <div class="month-row"><span class="mkey">No Deposit</span><span class="mval ${d.nodep>0?'':'highlight'}">${d.nodep}</span></div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+function renderAlerts() {
+  const today = new Date().toISOString().slice(0,10);
+  const mbd = {};
+  allBookings.filter(b => b.isMorning && b.moveDate >= today).forEach(b => { mbd[b.moveDate]=(mbd[b.moveDate]||0)+1; });
+  const alerts = Object.entries(mbd).filter(([,c])=>c>=12).sort((a,b)=>a[0].localeCompare(b[0]));
+  const bar = document.getElementById('alerts-bar');
+  const grid = document.getElementById('alerts-grid');
+  if (!alerts.length) { bar.style.display='none'; return; }
+  bar.style.display = 'block';
+  grid.innerHTML = alerts.map(([date,count]) => `
+    <div class="alert-card ${count>15?'danger':'warning'}">
+      <div class="alert-icon">${count>15?'🚨':'⚠️'}</div>
+      <div>
+        <div class="alert-title">${fmtDate(date)} — ${count} morning jobs</div>
+        <div class="alert-sub">${count>15?'OVER capacity limit of 15':'Approaching limit of 15'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+function renderTable() {
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total/PAGE_SIZE));
+  page = Math.min(page, pages);
+  const start = (page-1)*PAGE_SIZE;
+  const slice = filtered.slice(start, start+PAGE_SIZE);
+
+  document.getElementById('t-count').textContent = total + ' job' + (total!==1?'s':'') + (total!==allBookings.length?' (filtered)':'');
+  const tb = document.getElementById('t-body');
+  if (!slice.length) {
+    tb.innerHTML = '<tr><td colspan="18"><div class="empty">📭 No bookings match your filters</div></td></tr>';
+    document.getElementById('pag').style.display='none'; return;
+  }
+  tb.innerHTML = slice.map(b => `
+    <tr>
+      <td class="cell-nw"><strong>${fmtDate(b.moveDate)}</strong></td>
+      <td class="cell-wrap">${esc(b.customer)}</td>
+      <td class="cell-nw">${b.brand==='Tuji'?'<span class="badge b-tuji">Tuji</span>':b.brand==='CL'?'<span class="badge b-cl">CL</span>':''}</td>
+      <td class="cell-nw">${esc(b.route)}</td>
+      <td class="cell-nw">${b.timeStr||'—'}</td>
+      <td><span class="badge ${b.isLD?'b-ld':'b-local'}">${b.isLD?'LD':'Local'}</span></td>
+      <td>${b.isMorning?'<span class="badge b-am">Morning</span>':b.isAfternoon?'<span class="badge b-pm">Afternoon</span>':'<span class="badge b-mid">Mid-day</span>'}</td>
+      <td class="cell-nw">${esc(b.vehicle)||'—'}</td>
+      <td style="text-align:center">${esc(b.crew)||'—'}</td>
+      <td class="cell-nw">${esc(b.rate)||'—'}</td>
+      <td class="cell-nw">${b.serviceFee?'$'+cn(b.serviceFee):'—'}</td>
+      <td class="cell-nw">${esc(b.cf)||'—'}</td>
+      <td>${b.depositPaid?'<span class="badge b-yes">✓ Paid</span>':'<span class="badge b-no">No</span>'}</td>
+      <td class="cell-nw">${esc(b.rep)||'—'}</td>
+      <td class="cell-wrap" style="max-width:110px">${esc(b.source)||'—'}</td>
+      <td><span class="badge ${b.brand==='Tuji'?'b-tuji':b.brand==='CL'?'b-cl':'b-ztz'}">${esc(b.brand)||'Zip to Zip'}</span></td>
+      <td>${b.hasBulky?'<span class="badge b-bulky">Bulky</span>':''}${b.hasStorage?'<span class="badge b-storage">Storage</span>':''}</td>
+      <td>${b.missing.length?b.missing.map(m=>'<span class="badge b-miss">'+m+'</span>').join(' '):'<span style="color:var(--success)">✓</span>'}</td>
+    </tr>
+  `).join('');
+
+  const pag = document.getElementById('pag'); pag.style.display='flex';
+  document.getElementById('p-info').textContent = 'Showing '+(start+1)+'–'+Math.min(start+PAGE_SIZE,total)+' of '+total;
+  const pb = document.getElementById('p-btns'); pb.innerHTML='';
+  const prev = document.createElement('button'); prev.className='pbtn'; prev.textContent='←'; prev.disabled=page===1; prev.onclick=()=>{page--;renderTable();}; pb.appendChild(prev);
+  for (let i=Math.max(1,page-2);i<=Math.min(pages,page+2);i++) { const b=document.createElement('button'); b.className='pbtn'+(i===page?' active':''); b.textContent=i; b.onclick=(p=>()=>{page=p;renderTable();})(i); pb.appendChild(b); }
+  const nxt = document.createElement('button'); nxt.className='pbtn'; nxt.textContent='→'; nxt.disabled=page===pages; nxt.onclick=()=>{page++;renderTable();}; pb.appendChild(nxt);
+}
+
+// ── Morning ───────────────────────────────────────────────────────────────────
+function renderMorning() {
+  const mbd = {};
+  filtered.filter(b=>b.isMorning).forEach(b => { if(!mbd[b.moveDate]) mbd[b.moveDate]=[]; mbd[b.moveDate].push(b); });
+  const dates = Object.keys(mbd).sort();
+  const grid = document.getElementById('morning-grid');
+  if (!dates.length) { grid.innerHTML='<div class="empty">☀️ No morning jobs in current filter</div>'; return; }
+  grid.innerHTML = dates.map(date => {
+    const jobs=mbd[date], count=jobs.length;
+    const cls = count>15?'over':count>=12?'near':'';
+    return `
+      <div class="m-card ${cls}">
+        <div class="m-date">${fmtDate(date)}</div>
+        <div class="m-count">${count}</div>
+        <div style="font-size:10px;color:var(--text-muted)">morning job${count!==1?'s':''}</div>
+        ${count>15?'<div style="font-size:10px;color:var(--danger);font-weight:700;margin-top:4px">⚠ OVER CAPACITY</div>':''}
+        <div class="m-list">${jobs.map(j=>(j.timeStr||'?')+'  '+esc(j.customer)+(j.isLD?' [LD]':'')).join('<br>')}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Issues ────────────────────────────────────────────────────────────────────
+function renderIssues() {
+  const withMiss = filtered.filter(b=>b.missing.length>0);
+  const misEl = document.getElementById('issues-missing');
+  if (!withMiss.length) misEl.innerHTML='<div class="empty">✅ No missing info in current filter</div>';
+  else misEl.innerHTML = withMiss.map(b=>`
+    <div class="issue-row">
+      <span class="i-name">${esc(b.customer)}</span>
+      <span class="i-date">${fmtDate(b.moveDate)}</span>
+      <span class="i-rep">${esc(b.rep)||'—'}</span>
+      <div class="i-tags">${b.missing.map(m=>'<span class="itag err">'+m+'</span>').join('')}</div>
+    </div>
+  `).join('');
+
+  const highRisk = filtered.filter(b=>b.hasBulky||b.hasStorage||b.isLD||!b.depositPaid);
+  const hrEl = document.getElementById('issues-highrisk');
+  if (!highRisk.length) hrEl.innerHTML='<div class="empty">✅ No high-risk items in current filter</div>';
+  else hrEl.innerHTML = highRisk.map(b=>{
+    const tags=[];
+    if(b.hasBulky) tags.push({l:'Bulky Item',w:true});
+    if(b.hasStorage) tags.push({l:'Storage',w:true});
+    if(b.isLD) tags.push({l:'Long Distance',w:false});
+    if(!b.depositPaid) tags.push({l:'No Deposit',w:true});
+    return `<div class="issue-row"><span class="i-name">${esc(b.customer)}</span><span class="i-date">${fmtDate(b.moveDate)}</span><span class="i-rep">${esc(b.rep)||'—'}</span><div class="i-tags">${tags.map(t=>'<span class="itag '+(t.w?'warn':'')+'">'+t.l+'</span>').join('')}</div></div>`;
+  }).join('');
+}
+
+// ── Export HTML ────────────────────────────────────────────────────────────────
+function exportHTML() {
+  const ts = new Date().toLocaleString();
+  const snap = JSON.stringify(filtered);
+  const html = buildExportHTML(snap, ts);
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='ZipToZip_Dashboard_'+new Date().toISOString().slice(0,10)+'.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+function buildExportHTML(data, ts) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Zip To Zip Snapshot ${ts}</title>
+  <style>body{font-family:system-ui,sans-serif;padding:20px;background:#f1f5f9;color:#0f172a}h1{margin-bottom:4px}.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700}table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)}th{background:#f8fafc;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;border-bottom:1px solid #e2e8f0}td{padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:12px}tr:hover{background:#f8fafc}.b-local{background:#dbeafe;color:#2563eb}.b-ld{background:#dcfce7;color:#16a34a}.b-am{background:#fef3c7;color:#92400e}.b-pm{background:#ede9fe;color:#7c3aed}.b-mid{background:#f1f5f9;color:#64748b}.b-yes{background:#dcfce7;color:#16a34a}.b-no{background:#fee2e2;color:#dc2626}.b-miss{background:#fee2e2;color:#dc2626;font-size:10px}</style></head>
+  <body><h1>📦 Zip To Zip Moving — Booking Snapshot</h1><p style="color:#64748b;font-size:12px;margin-bottom:16px">Generated ${ts} · ${JSON.parse(data).length} jobs</p>
+  <table><thead><tr><th>Move Date</th><th>Customer</th><th>Route</th><th>Time</th><th>Type</th><th>Crew</th><th>Rate</th><th>CF</th><th>Deposit</th><th>Rep</th><th>Source</th><th>Flags</th><th>Missing</th></tr></thead>
+  <tbody>${JSON.parse(data).map(b=>`<tr><td>${b.moveDate}</td><td>${(b.customer||'').replace(/</g,'&lt;')}</td><td>${b.route}</td><td>${b.timeStr||'—'}</td><td><span class="badge ${b.isLD?'b-ld':'b-local'}">${b.isLD?'LD':'Local'}</span></td><td>${b.crew||'—'}</td><td>${(b.rate||'—').replace(/</g,'&lt;')}</td><td>${b.cf||'—'}</td><td>${b.depositPaid?'✓':'No'}</td><td>${b.rep||'—'}</td><td>${b.source||'—'}</td><td>${b.hasBulky?'Bulky ':''}${b.hasStorage?'Storage':''}</td><td>${(b.missing||[]).join(', ')||'✓'}</td></tr>`).join('')}
+  </tbody></table></body></html>`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]+' '+(+day)+', '+y;
+}
+function fmtDateShort(d) {
+  if (!d) return '—';
+  const [,m,day] = d.split('-');
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]+' '+(+day);
+}
+function fmtMonth(m) {
+  const [y,mo] = m.split('-');
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;
+}
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+</script>
+</body>
+</html>
